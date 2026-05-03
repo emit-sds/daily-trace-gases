@@ -14,7 +14,8 @@ Please refer to the publication for more details about the methods.
 
 <p align="center">
   Pre-print (wip) •
-  <a href="https://colab.research.google.com/github/emit-sds/daily-trace-gases/blob/master/notebooks/detect_trace_gases.ipynb">Colab Demo Notebook<img src="https://colab.research.google.com/assets/colab-badge.svg" height=16px></a> •
+  <a href="https://colab.research.google.com/github/emit-sds/daily-trace-gases/blob/master/notebooks/detect_trace_gases.ipynb">Colab Demo Notebook <img src="https://colab.research.google.com/assets/colab-badge.svg" height=16px></a> •
+  <a href="https://doi.org/10.5281/zenodo.19992726"> Dataset of NH<sub>3</sub>, NO<sub>2</sub> and CO <img src="https://about.zenodo.org/static/img/logos/zenodo-gradient-round.svg" height=16px></a> •
   <a href="https://huggingface.co/previtus/JPL_TRACE_GASES_MODELS"> Trained models 🤗 </a>
 </p>
 
