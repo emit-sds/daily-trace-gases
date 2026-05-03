@@ -1,0 +1,18 @@
+segmentation-models-pytorch
+georeader-spaceml >= 1.5.0, <= 1.5.9
+omegaconf
+rasterio
+geopandas
+matplotlib
+geojson
+netCDF4
+earthaccess
+torch
+torchvision
+numpy
+scipy
+spectral
+pysolar
+GitPython
+scikit-image
+Pyarrow

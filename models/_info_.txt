@@ -1,0 +1,11 @@
+! INFO !
+This folder is used to store model weights.
+If you want to store these elsewhere, you can add your own path into utils/paths.py
+
+! DOWNLOADING MODELS !
+
+# (install huggingface downloader) brew install hf
+hf download previtus/JPL_TRACE_GASES_MODELS --local-dir JPL_TRACE_GASES_MODELS
+
+# (or just via git)
+git clone git@hf.co:previtus/JPL_TRACE_GASES_MODELS

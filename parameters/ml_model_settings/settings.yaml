@@ -1,0 +1,19 @@
+# Minimised version of settings from https://github.com/UNEP-IMEO-MARS/marsml-hyperspectral
+# Author: Vit Ruzicka
+
+trainer:
+  accelerator: "cpu" # or gpu or mps
+
+# MODEL
+model:
+  architecture: "unet"
+  uses_sigmoid: True # for unet
+  encoder_name: "timm-mobilenetv3_large_100"
+
+  num_channels: 4
+  image_resolution: 128
+
+  load_path: ""
+  evaluation_checkpointmode: ""
+
+
