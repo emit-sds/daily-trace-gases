@@ -1,0 +1,26 @@
+This repository uses code from several other repositories and usually changes and minimises it, so that the it is simpler to use it locally. In all cases, please refer to the publication for more details.
+
+Namely:
+
+[A_matched_filter/wmf_utils]
+
+Source: https://github.com/UNEP-IMEO-MARS/marsml-hyperspectral/tree/main/data/matched_filter_utils
+Description: This script is used to compute the WMF product (wide-window matched filter), which is used for methane segmentation.
+
+[A_matched_filter/cmf_emit_ghg/mf.py]
+
+Source: https://github.com/emit-sds/emit-ghg/blob/main/parallel_mf.py
+Description: This script is used to compute the CMF product (column-wise matched filter). There were small changes made to simplify the call and we removed the parallelization using Ray as in practice we didn't observe any speed up with it.
+The computed methane CMF should be similar to the products released at https://www.earthdata.nasa.gov/data/catalog/lpcloud-emitl2bch4enh-002 - however please note, that for an exact match, the used target signature needs to be computed from scratch for each scene (please refer to "Impact of scene-specific enhancement spectra on matched filter greenhouse gas retrievals from imaging spectroscopy" at https://www.sciencedirect.com/science/article/abs/pii/S0034425721002947 for more details on that).
+
+[B_ml_segmentation/model_utils.py]
+
+Source: https://github.com/UNEP-IMEO-MARS/marsml-hyperspectral
+Description: This script handles the loading and prediction with our semantic segmentation machine learning models. We have simplified the code to only include the data and model loaders - training logic has been kept out. For training new ML models, please refer to the original repository. New functionality is introduced in "run_models_other_gases.py", namely in normalisation of the CMF products computed for other trace gases.
+
+[C_plume_scoring/pv_utils/sfun.py]
+
+Source: https://github.com/emit-sds/plume-vetting and https://github.com/emit-sds/plume-vetting/blob/main/sfun.py
+Description: This script contains the logic for plume scoring by examining the fit between the spectral target and values observed in the data. In "scoring_gas_utils.py" we provide extensions to other trace gases, this mainly changes the hyperparameters used by the scoring script (most importantly the bands used for in and out of each absorption feature).
+
+In all cases, the code was simplified to allow execution from within one repository - and to allow the general calls shown in run_for_ch4.py and run_for_trace_gas.py.

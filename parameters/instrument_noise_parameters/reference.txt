@@ -1,0 +1,2 @@
+The emit_noise.txt file is sourced from https://github.com/emit-sds/emit-ghg/blob/main/instrument_noise_parameters/emit_noise.txt
+It is used during the computation of the column wise matched filter (CMF) as part of the code in pipeline/A_matched_filter/cmf_emit_ghg
