@@ -2,7 +2,7 @@ import os.path
 
 import earthaccess
 from earthaccess import download
-# auth = earthaccess.login()
+auth = earthaccess.login()
 # example: earthaccess.download(["https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2BCH4ENH.002/EMIT_L2B_CH4ENH_002_20240616T072726_2416805_025/EMIT_L2B_CH4ENH_002_20240616T072726_2416805_025.tif"], local_path=".")
 
 from utils.rio_utils import file_exists

@@ -13,16 +13,18 @@ Please refer to the publication for more details about the methods.
 </table>
 
 <p align="center">
-  Pre-print (wip) •
+  <a href="https://www.nature.com/articles/s41598-026-70499-1">Nature Scientific Reports Paper 2026</a> •
   <a href="https://colab.research.google.com/github/emit-sds/daily-trace-gases/blob/master/notebooks/detect_trace_gases.ipynb">Colab Demo Notebook <img src="https://colab.research.google.com/assets/colab-badge.svg" height=16px></a> •
   <a href="https://doi.org/10.5281/zenodo.19992726"> Dataset of NH<sub>3</sub>, NO<sub>2</sub> and CO <img src="https://about.zenodo.org/static/img/logos/zenodo-gradient-round.svg" height=16px></a> •
   <a href="https://huggingface.co/previtus/JPL_TRACE_GASES_MODELS"> Trained models 🤗 </a>
 </p>
 
 
-## Important first notes
+## Versions
 
-This version is attached to the submitted paper. Please always check the official repository (https://github.com/emit-sds/daily-trace-gases/) for any updates.
+```bash
+v1.0.0 - Paper release version
+```
 
 ## Prerequisites
 
@@ -93,3 +95,19 @@ Machine learning models:
 
 Spectral fit scoring:
 - https://github.com/emit-sds/plume-vetting (plume vetting for CH<sub>4</sub>)
+
+## Citation
+If you find our Trace Gas models or dataset useful in your research, please consider citing our work. 
+
+```
+@article{ruzicka_TraceGases_2026,
+	title = {Fully automatic trace gas plume detection},
+	issn = {2045-2322},
+	url = {https://www.nature.com/articles/s41598-026-70499-1},
+	doi = {10.1038/s41598-026-70499-1},
+	journal = {Scientific Reports},
+  author={Růžička, Vít and Thompson, David R and Fahlen, Jay E and Lopez, Amanda M and Lu, Steven and Xiang, Chuchu and Bender, Holly and Jensen, Daniel and Brodrick, Philip G and Lee, Jake and Bue, Brian and Cusworth, Daniel H., Guanter, Luis and Chlus, Adam and Thorpe, Andrew and Green, Robert O.},
+	month = oct,
+	year = {2026},
+}
+```
