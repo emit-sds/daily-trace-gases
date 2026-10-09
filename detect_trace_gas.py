@@ -45,12 +45,12 @@ if __name__ == '__main__':
 
     # ### DEMO LOCAL OVERRIDES
     r = "."
-    tile_ID = "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
-    gas = "ch4"
-    
+    # tile_ID = "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
+    # gas = "ch4"
+    #
     # Adding compatibility with V002 of RAD products - example scene with ch4 event:
-    tile_ID = "EMIT_L1B_RAD_002_20260927T090347"
-    gas = "ch4"
+    # tile_ID = "EMIT_L1B_RAD_002_20260927T090347"
+    # gas = "ch4"
 
     # tile_ID = "EMIT_L1B_RAD_001_20250418T090845_2510806_029"
     # gas = "no2"
@@ -58,7 +58,14 @@ if __name__ == '__main__':
     # gas = "nh3"
     # tile_ID = "EMIT_L1B_RAD_001_20230623T031429_2317402_015"
     # gas = "co"
-    #
+
+    # Adding compatibility with V002 of RAD products - test for other trace gases:
+
+    # tile_ID = "EMIT_L1B_RAD_001_20230217T063221_2304804_014"
+    tile_ID = "EMIT_L1B_RAD_002_20230217T063221"
+    gas = "co"
+
+
     # raws_folder = r+"/run_data/intermediates_folder"
     # results_folder = r+"/run_data/results"
     # ###

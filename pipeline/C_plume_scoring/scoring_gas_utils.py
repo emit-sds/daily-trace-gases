@@ -1,5 +1,5 @@
 import numpy as np
-from pipeline.C_plume_scoring.run_scoring import load_and_prep_data, run_plume_vetting_on_scene
+from pipeline.C_plume_scoring.run_scoring import run_plume_vetting_on_scene, load_rdn_mask
 from parameters.emit_waves import INSTRUMENT_WAVELENGTHS
 
 def get_gas_settings(gas):
@@ -46,10 +46,9 @@ def get_gas_settings(gas):
     return mf_threshold, ind_fits, ind_out
 
 def get_score_for_tile(tile_id, raws_folder, results_folder, vectors, cmf_for_gas, gas, target_signature,
-                                  min_polygon_size=0, debug_viz=False, debug_jump_to = None, preds_name = "prediction.geojson"):
+                                  min_polygon_size=0, debug_viz=False, debug_jump_to = None, preds_name = "prediction.geojson", cmf_path = ""):
 
-
-    rdn, _, mask, _, cmf_path, scene_ch4_target_signature, vector_loaded_path = load_and_prep_data(tile_id, raws_folder=raws_folder, results_folder=results_folder, preds_name=preds_name, load_signature=False)
+    rdn, mask = load_rdn_mask(tile_id, raws_folder=raws_folder)
 
     mf_threshold, ind_fits, ind_out = get_gas_settings(gas)
 
