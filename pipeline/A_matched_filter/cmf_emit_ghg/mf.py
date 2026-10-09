@@ -476,28 +476,21 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
         # get subset of pixels to use for covariance / mean estimates
         cov_subset = get_mc_subset(_mc, args, good_pixel_idx)
 
-        # optional radiance adjustment for max radiance pcs...experimental
-        if args.remove_dominant_pcs:
-            pca_mean = rdn[cov_subset,:].mean(axis=0) 
-            pcavals, pcavec = scipy.linalg.eigh(cov(rdn - pca_mean))
-            loc_rdn = (rdn - pca_mean ) @ pcavec[:,:-5]
-            target = (absorption_coefficients.copy() * pca_mean) @ pcavec[:,:-5]
-        else:
-            loc_rdn = rdn
-            target = absorption_coefficients.copy() * np.mean(loc_rdn[cov_subset,:],axis=0)
+        mu = np.mean(rdn[cov_subset,:], axis=0)
+        target = absorption_coefficients * mu
 
         # calculate covariance and mean
         try:
-            C = calculate_mf_covariance(loc_rdn[cov_subset,:], args.covariance_style, args.fixed_alpha)
-            Cstd = scipy.linalg.sqrtm(scipy.linalg.inv(C, check_finite=False)) # diffmf
-            # Cinv = scipy.linalg.inv(C, check_finite=False) # cmf
+            C = calculate_mf_covariance(rdn[cov_subset,:], args.covariance_style, args.fixed_alpha)
+            Cinv = scipy.linalg.inv(C, check_finite=False)
+            Cstd = scipy.linalg.sqrtm(Cinv)
+
         except np.linalg.LinAlgError:
             logging.warn('singular matrix. skipping this column')
             return None, None
-        mu = np.mean(loc_rdn[cov_subset,:], axis=0)
 
-        tgt_zmw = (absorption_coefficients * mu).dot(Cstd) # ~ target
-        col_zmw = (loc_rdn[no_radiance_mask, :] - mu).dot(Cstd)
+        tgt_zmw = (target).dot(Cstd) # ~ target
+        col_zmw = (rdn[no_radiance_mask, :] - mu).dot(Cstd)
 
         d = 0 # cmf
         # d = 1 # diffmf 1
@@ -516,25 +509,21 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
 
         mf = dcol_zmw.dot(dtgt_zmw.T) / dtgt_norm
 
-        # # Matched filter time
+        # Formalism from CMF was:
         # normalizer = target.dot(Cinv).dot(target.T)
-        # if args.ace_filter:
-        #     rx = np.sum((loc_rdn[no_radiance_mask,:] - mu) @ Cinv * (loc_rdn[no_radiance_mask,:] - mu), axis = 1)
-        #     normalizer = normalizer * rx
-        # 
-        # mf = ((loc_rdn[no_radiance_mask,:] - mu).dot(Cinv).dot(target.T)) / normalizer
+        # dcol = ((rdn[no_radiance_mask,:] - mu).dot(Cinv)
+        # mf = dcol.dot(target.T)) / normalizer
 
         if args.uncert_output_file is not None:
             ####################################################################################################################
             # Uncertainty
             # This implements (s^T Cinv Sigma Cinv s) / (s^T Cinv aX) (in linear algebra notation)
             # Sigma is diagonal, so we just need a standard numpy multiply, which we can also broadcast along the whole column
-            
             sC = dtgt_zmw.dot(Cstd)
             numer = (sC * nedl_variance[no_radiance_mask,:]) @ sC
 
             # note: don't compute this again if we iterate (d in 0 to 2)
-            a_times_X = (-1 * absorption_coefficients.copy() * loc_rdn[no_radiance_mask, :]).dot(Cstd)
+            a_times_X = (-1 * absorption_coefficients.copy() * rdn[no_radiance_mask, :]).dot(Cstd)
 
             if d == 0:
                 # for cmf
