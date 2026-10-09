@@ -13,6 +13,30 @@ from pipeline.C_plume_scoring.pv_utils.plume_vetting_utils import compute_masks,
 from pipeline.C_plume_scoring.pv_utils.sfun import get_pairs, get_ratio, calculate_fit
 from parameters.emit_waves import INSTRUMENT_WAVELENGTHS
 
+def load_rdn_mask(tile_id, raws_folder):
+    # simpler loader, just load these two:
+    rdn_path = os.path.join(raws_folder, get_rad_name(tile_id, with_file_type=True))
+    mask_path = os.path.join(raws_folder, get_mask_name(tile_id, with_file_type=True))
+
+    # Load data:
+    # === L1B RAD data loading: ===
+    ei = NCImage(rdn_path)
+    data = ei.load(as_reflectance=False)
+
+    rdn_ = data.values
+    rdn_ = np.transpose(rdn_, axes=(1, 2, 0)) # Ch, W, H => i want into W,H,Ch again
+    rdn_masked = np.where(rdn_ == -9999, 0, rdn_) # masked with 0 is close to how it's loaded in the main script ...
+    rdn = rdn_masked
+
+    # === L2A mask loading: ===
+    mask = NCImage(mask_path, layer_name = "mask", skip_wavelenghts=True)
+    mask = mask.load(as_reflectance=False)
+    mask_data = mask.values
+    mask_data = np.transpose(mask_data, axes=(1, 2, 0))
+    clouds_and_surface_water_mask = np.sum(mask_data[..., :3], axis=-1) > 0
+
+    return rdn, clouds_and_surface_water_mask
+
 def load_and_prep_data(tile_ID, raws_folder, results_folder, preds_name = "prediction_ensemble.geojson", load_signature=True):
     predictions_path = os.path.join(results_folder, preds_name)
     rdn_path = os.path.join(raws_folder, get_rad_name(tile_ID, with_file_type=True))

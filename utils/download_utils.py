@@ -15,11 +15,17 @@ def get_obs_name(tile_name, with_file_type=False):
     if with_file_type: return name+".nc"
     return name
 def get_cmf_name(tile_name, with_file_type=False):
-    name = tile_name.replace("_L1B_RAD_001_","_L2B_CH4ENH_002_")
+    if "EMIT_L1B_RAD_001" in tile_name:
+        name = tile_name.replace("_L1B_RAD_001_","_L2B_CH4ENH_002_")
+    elif "EMIT_L1B_RAD_002" in tile_name:
+        name = tile_name.replace("_L1B_RAD_002_", "_L2B_CH4ENH_003_")
     if with_file_type: return name+".tif"
     return name
 def get_mask_name(tile_name, with_file_type=False):
-    name = tile_name.replace("_L1B_RAD_", "_L2A_MASK_")
+    if "EMIT_L1B_RAD_001" in tile_name:
+        name = tile_name.replace("_L1B_RAD_", "_L2A_MASK_")
+    elif "EMIT_L1B_RAD_002" in tile_name:
+        name = tile_name.replace("_L1B_RAD_002_", "_L2A_MASK_003_")
     if with_file_type: return name+".nc"
     return name
 
@@ -31,23 +37,41 @@ def download_granule(tile_name = "EMIT_L1B_RAD_001_20250529T024614_2514902_001",
     rad_name = tile_name
     obs_name = tile_name.replace("_RAD_","_OBS_")
 
+    product_version = "001"
+    if "EMIT_L1B_RAD_002" in tile_name:
+        product_version = "002"
     links = []
     if download_l1b:
-        links = ["https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL1BRAD.001/"+rad_name+"/"+rad_name+".nc",
-          "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL1BRAD.001/"+rad_name+"/"+obs_name+".nc"]
+        if product_version=="001":
+            links = ["https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL1BRAD.001/"+rad_name+"/"+rad_name+".nc",
+              "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL1BRAD.001/"+rad_name+"/"+obs_name+".nc"]
+        elif product_version=="002":
+            links = ["https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL1BRAD.002/"+rad_name+"/"+rad_name+".nc",
+              "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL1BRAD.002/"+rad_name+"/"+obs_name+".nc"]
 
     if also_download_l2a_mask:
-        rfl_name = tile_name.replace("_L1B_RAD_","_L2A_RFL_")
-        mask_name = tile_name.replace("_L1B_RAD_","_L2A_MASK_")
-        l2a_rfl_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/"+rfl_name+"/"+rfl_name+".nc"
-        l2a_mask_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/"+rfl_name+"/"+mask_name+".nc"
+        if product_version=="001":
+            rfl_name = tile_name.replace("_L1B_RAD_","_L2A_RFL_")
+            mask_name = tile_name.replace("_L1B_RAD_","_L2A_MASK_")
+            l2a_rfl_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/"+rfl_name+"/"+rfl_name+".nc"
+            l2a_mask_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.001/"+rfl_name+"/"+mask_name+".nc"
+        if product_version == "002":
+            # e.g. EMIT_L1B_RAD_002_20260926T190432 => EMIT_L2A_MASK_003_20260926T190432
+            # e.g. EMIT_L1B_RAD_002_20260926T190432 => EMIT_L2A_RFL_002_20260926T190432
+            rfl_name = tile_name.replace("_L1B_RAD_002_","_L2A_RFL_002_")
+            mask_name = tile_name.replace("_L1B_RAD_002_", "_L2A_MASK_003_")
+            l2a_rfl_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2ARFL.002/"+rfl_name+"/"+rfl_name+".nc"
+            l2a_mask_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2AMASK.003/"+mask_name+"/"+mask_name+".nc"
         if also_download_l2a_rfl: links.append(l2a_rfl_link)
         links.append(l2a_mask_link)
 
     if also_download_official_cmf:
-        cmf_name = tile_name.replace("_L1B_RAD_001_","_L2B_CH4ENH_002_")
-        cmf_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2BCH4ENH.002/"+cmf_name+"/"+cmf_name+".tif"
-        links.append(cmf_link)
+        if product_version=="001":
+            cmf_name = tile_name.replace("_L1B_RAD_001_","_L2B_CH4ENH_002_")
+            cmf_link = "https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/EMITL2BCH4ENH.002/"+cmf_name+"/"+cmf_name+".tif"
+            links.append(cmf_link)
+        if product_version == "002":
+            print("Warning, the L2B_CH4ENH_003 product is not yet released - instead we cook it later with our code!")
 
     # check if these files already exist?
     file_needed = []
@@ -56,7 +80,10 @@ def download_granule(tile_name = "EMIT_L1B_RAD_001_20250529T024614_2514902_001",
         if also_download_l2a_rfl: file_needed.append(os.path.join(local_path, rfl_name + ".nc"))
         file_needed.append(os.path.join(local_path, mask_name + ".nc"))
     if also_download_official_cmf:
-        file_needed.append(os.path.join(local_path, cmf_name + ".tif"))
+        if product_version=="001":
+            file_needed.append(os.path.join(local_path, cmf_name + ".tif"))
+        if product_version == "002":
+            pass
 
     links_missing = []
     all_exist = True
