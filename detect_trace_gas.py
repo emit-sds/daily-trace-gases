@@ -44,9 +44,14 @@ if __name__ == '__main__':
     raws_folder = args.raws_folder
 
     # ### DEMO LOCAL OVERRIDES
-    # r = "."
-    # tile_ID = "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
-    # gas = "ch4"
+    r = "."
+    tile_ID = "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
+    gas = "ch4"
+    
+    # Adding compatibility with V002 of RAD products - example scene with ch4 event:
+    tile_ID = "EMIT_L1B_RAD_002_20260927T090347"
+    gas = "ch4"
+
     # tile_ID = "EMIT_L1B_RAD_001_20250418T090845_2510806_029"
     # gas = "no2"
     # tile_ID = "EMIT_L1B_RAD_001_20231223T123029_2335708_008"

@@ -6,6 +6,7 @@ import rasterio
 import pipeline.A_matched_filter.cmf_emit_ghg.mf as mf
 import pipeline.A_matched_filter.cmf_emit_ghg.spec_io as spec_io
 from pipeline.A_matched_filter.cmf_emit_ghg.s_utils import convert_to_cog
+from utils.download_utils import get_obs_name, get_mask_name
 
 
 # Below is taken from ghg_process...
@@ -84,8 +85,8 @@ def run_cmf_using_target_file_tile_ID(tile_ID, gas_name, target_file, raws_folde
     download_granule(tile_ID, raws_folder, also_download_l2a_mask=True, also_download_official_cmf=True)
 
     rad_name = tile_ID + ".nc"
-    obs_name = rad_name.replace("_RAD_","_OBS_")
-    mask_name = rad_name.replace("_L1B_RAD_", "_L2A_MASK_")
+    obs_name = get_obs_name(tile_ID, with_file_type=True)
+    mask_name = get_mask_name(tile_ID, with_file_type=True)
 
     radiance_file = os.path.join(raws_folder, rad_name)
     obs_file = os.path.join(raws_folder, obs_name)
