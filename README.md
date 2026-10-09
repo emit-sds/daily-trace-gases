@@ -23,6 +23,7 @@ Please refer to the publication for more details about the methods.
 ## Versions
 
 ```bash
+v1.0.1 - Added support for V002 version of the radiance products (any scene starting with "EMIT_L1B_RAD_002_*")
 v1.0.0 - Paper release version
 ```
 
@@ -70,6 +71,7 @@ python -m detect_trace_gas -gas "ch4" -tile "EMIT_L1B_RAD_001_20260102T143123_26
 python -m detect_trace_gas -gas "nh3" -tile "EMIT_L1B_RAD_001_20231223T123029_2335708_008"
 python -m detect_trace_gas -gas "no2" -tile "EMIT_L1B_RAD_001_20250418T090845_2510806_029"
 python -m detect_trace_gas -gas "co"  -tile "EMIT_L1B_RAD_001_20230623T031429_2317402_015"
+# PS: Scenes with the V002 radiance (starting with "EMIT_L1B_RAD_002_*") are also supported
 
 # Or with uv (this might be slow first time)
 uv run detect_trace_gas.py -gas "ch4" -tile "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
