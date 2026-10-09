@@ -24,6 +24,7 @@
 
 import argparse
 from spectral.io import envi
+from scipy.signal import savgol_filter
 import sys
 import scipy.linalg
 import scipy.ndimage
@@ -427,6 +428,12 @@ def get_noise_equivalent_spectral_radiance(noise_model_parameters: np.array, rad
     nedl = np.abs(noise_model_parameters[:, 0] * np.sqrt(noise_plus_meas) + noise_model_parameters[:, 2])
     return nedl
 
+def savgol(x,deriv=0,wlen=5,pord=4,delta=1.0,axis=-1):
+    xf = savgol_filter(x, wlen, pord, deriv=deriv, delta=delta,
+                       axis=axis, mode='mirror')
+    return xf
+
+# Making more compatible with diffmf:
 def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.array, active_wl_idx: np.array, good_pixel_mask: np.array, noise_model_parameters: np.array, args, nd_buffer=0.1):
     """ Run the matched filter on a single column of the input image
 
@@ -482,40 +489,69 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
         # calculate covariance and mean
         try:
             C = calculate_mf_covariance(loc_rdn[cov_subset,:], args.covariance_style, args.fixed_alpha)
-            Cinv = scipy.linalg.inv(C, check_finite=False)
+            Cstd = scipy.linalg.sqrtm(scipy.linalg.inv(C, check_finite=False)) # diffmf
+            # Cinv = scipy.linalg.inv(C, check_finite=False) # cmf
         except np.linalg.LinAlgError:
             logging.warn('singular matrix. skipping this column')
             return None, None
         mu = np.mean(loc_rdn[cov_subset,:], axis=0)
 
-        # Matched filter time
-        normalizer = target.dot(Cinv).dot(target.T)
-        if args.ace_filter:
-            rx = np.sum((loc_rdn[no_radiance_mask,:] - mu) @ Cinv * (loc_rdn[no_radiance_mask,:] - mu), axis = 1)
-            normalizer = normalizer * rx
+        tgt_zmw = (absorption_coefficients * mu).dot(Cstd) # ~ target
+        col_zmw = (loc_rdn[no_radiance_mask, :] - mu).dot(Cstd)
 
-        mf = ((loc_rdn[no_radiance_mask,:] - mu).dot(Cinv).dot(target.T)) / normalizer
+        d = 0 # cmf
+        # d = 1 # diffmf 1
+        # d = 2 # diffmf 2
+
+        if d == 0:
+            # standard CMF
+            dcol_zmw = col_zmw
+            dtgt_zmw = tgt_zmw
+
+        elif d > 0: # diffmf(d>0)
+            dcol_zmw = savgol(col_zmw, deriv=d)
+            dtgt_zmw = savgol(tgt_zmw, deriv=d)
+
+        dtgt_norm = dtgt_zmw.dot(dtgt_zmw.T) # ~ normalizer
+
+        mf = dcol_zmw.dot(dtgt_zmw.T) / dtgt_norm
+
+        # # Matched filter time
+        # normalizer = target.dot(Cinv).dot(target.T)
+        # if args.ace_filter:
+        #     rx = np.sum((loc_rdn[no_radiance_mask,:] - mu) @ Cinv * (loc_rdn[no_radiance_mask,:] - mu), axis = 1)
+        #     normalizer = normalizer * rx
+        # 
+        # mf = ((loc_rdn[no_radiance_mask,:] - mu).dot(Cinv).dot(target.T)) / normalizer
 
         if args.uncert_output_file is not None:
             ####################################################################################################################
             # Uncertainty
             # This implements (s^T Cinv Sigma Cinv s) / (s^T Cinv aX) (in linear algebra notation)
             # Sigma is diagonal, so we just need a standard numpy multiply, which we can also broadcast along the whole column
-            sC = target.dot(Cinv)
+            
+            sC = dtgt_zmw.dot(Cstd)
             numer = (sC * nedl_variance[no_radiance_mask,:]) @ sC
-            a_times_X = -1 * absorption_coefficients.copy() * loc_rdn[no_radiance_mask, :]
-            denom = ((a_times_X).dot(Cinv).dot(target.T))**2
-            uncert = np.sqrt(numer/denom)
-            ####################################################################################################################
 
-            sens_mc[no_radiance_mask,_mc] = np.sqrt(denom) / normalizer
-        
-        
+            # note: don't compute this again if we iterate (d in 0 to 2)
+            a_times_X = (-1 * absorption_coefficients.copy() * loc_rdn[no_radiance_mask, :]).dot(Cstd)
+
+            if d == 0:
+                # for cmf
+                da_times_X = a_times_X
+            elif d > 0:
+                # for diffmf
+                da_times_X = savgol(a_times_X, deriv=d)
+
+            denom = (dtgt_zmw.dot(da_times_X.T)) ** 2
+            uncert = np.sqrt(numer / denom)
+            ####################################################################################################################
+            sens_mc[no_radiance_mask, _mc] = np.sqrt(denom) / dtgt_norm
+
         # scale outputs
         mf_mc[no_radiance_mask,_mc] = mf * args.ppm_scaling
         if args.uncert_output_file is not None:
             uncert_mc[no_radiance_mask,_mc] = uncert * args.ppm_scaling
-    
 
     output = np.vstack([np.mean(mf_mc,axis=-1), np.std(mf_mc,axis=-1)]).T
     output[np.logical_and(no_radiance_mask, output[...,0] == args.nodata_value),:] = args.nodata_value + nd_buffer
