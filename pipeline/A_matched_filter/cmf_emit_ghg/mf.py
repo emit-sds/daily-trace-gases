@@ -42,23 +42,20 @@ def main(input_args=None, override={}):
     parser.add_argument('radiance_file', type=str,  metavar='INPUT', help='path to input image')   
     parser.add_argument('library', type=str,  metavar='LIBRARY', help='path to target library file')
     parser.add_argument('output_file', type=str,  metavar='OUTPUT', help='path for output image (mf ch4 ppm)')    
-
     parser.add_argument('--covariance_style', type=str, default='looshrinkage', choices=['empirical', 'looshrinkage'], help='style of covariance estimation') 
-    parser.add_argument('--fixed_alpha', type=float, default=None, help='fixed value for shrinkage (with looshrinkage covariance style only)')    
+    parser.add_argument('--fixed_alpha', type=float, default=None, help='fixed value for shrinkage (with looshrinkage covariance style only)')
     parser.add_argument('--num_cores', type=int, default=-1, help='number of cores (-1 (default))')
-    parser.add_argument('--n_mc', type=int, default=10, help='number of monte carlo runs')
+    parser.add_argument('--cmf_diffmf_bands', type=str, default='0,1,2', help='derivative for each band - eg [0] makes cfm, [0,1,2] the cmf+diffmf1+2')
     parser.add_argument('--mc_bag_fraction',type=float, default=0.7, help='fraction of data to use in each MC instance')
     parser.add_argument('--wavelength_range', nargs='+', type=float, default=None, help='wavelengths to use: None = default for gas, 2x values = min/max pairs of regions')
-    parser.add_argument('--remove_dominant_pcs',action='store_true', help='remove dominant PCs from covariance calculation')         
-    parser.add_argument('--subsample_strategy',type=str,choices=['random','spatial_blocks'], help='sampling strategy for mc runs')         
+    parser.add_argument('--subsample_strategy',type=str,choices=['random','spatial_blocks'], help='sampling strategy for mc runs')
     parser.add_argument('--l1b_bandmask_file',type=str,default=None, help='path to the l1b bandmask file for saturation')         
     parser.add_argument('--l2a_mask_file', type=str,  help='path to l2a mask image for clouds and water')   
     parser.add_argument('--mask_clouds_water',action='store_true', help='mask clouds and water from output matched filter')         
     parser.add_argument('--mask_saturation',action='store_true', help='mask saturated pixels from output matched filter')         
     parser.add_argument('--mask_flares',action='store_true', help='mask flared pixels from output matched filter')         
     parser.add_argument('--ppm_scaling', type=float, default=100000.0, help='scaling factor to unit convert outputs - based on target')         
-    parser.add_argument('--ace_filter', action='store_true', help='Use the Adaptive Cosine Estimator (ACE) Filter')    
-    parser.add_argument('--target_scaling', type=str,choices=['mean','pixel'],default='mean', help='value to scale absorption coefficients by')    
+    parser.add_argument('--target_scaling', type=str,choices=['mean','pixel'],default='mean', help='value to scale absorption coefficients by')
     parser.add_argument('--nodata_value', type=float, default=-9999, help='output nodata value')         
     parser.add_argument('--screen_value', type=float, default=-9999, help='value assigned to screened out pixels')         
     parser.add_argument('--flare_outfile', type=str, default=None, help='output geojson to write flare location centers')         
@@ -72,6 +69,7 @@ def main(input_args=None, override={}):
 
     # print("mf args:", input_args)
     args = parser.parse_args(input_args)
+    cmf_diffmf_bands = [int(i) for i in args.cmf_diffmf_bands.split(",")]
 
     for k in override.keys():
         setattr(args, k, override[k])
@@ -128,15 +126,20 @@ def main(input_args=None, override={}):
     library_reference = np.float64(np.loadtxt(args.library))
     absorption_coefficients = library_reference[active_wl_idx,2]
 
+    band_names = []
+    for d in cmf_diffmf_bands:
+        if d == 0: band_names.append('Matched Filter')
+        if d > 0: band_names.append(f'Differential Matched Filter Derivative {d}')
+
     logging.info('Create output file, initialized with nodata')
     outmeta = {}
     outmeta['samples'] = full_radiance.shape[2]
     outmeta['lines'] = full_radiance.shape[0]
     outmeta['data type'] = np2envitype(np.float32)
-    outmeta['bands'] = 1
     outmeta['description'] = 'Matched Filter Results'
-    outmeta['band names'] = 'Matched Filter'
-    outmeta['interleave'] = 'bil'    
+    outmeta['bands'] = len(cmf_diffmf_bands)
+    outmeta['band names'] = band_names
+    outmeta['interleave'] = 'bil'
     outmeta['z plot range'] = '{0, 1500}' #adapt to include co2
     outmeta['data ignore value'] = args.nodata_value
     for kwarg in ['smoothing factors','wavelength','wavelength units','fwhm']:
@@ -191,27 +194,33 @@ def main(input_args=None, override={}):
             clouds_and_surface_water_mask = np.sum(clouds_and_surface_water_mask, axis=-1) > 0
             good_pixel_mask = np.where(clouds_and_surface_water_mask, False, good_pixel_mask)
 
-
         output_dat = np.zeros(chunk_shape,dtype=np.float32)
         output_uncert_dat = np.ones(chunk_shape,dtype=np.float32) * args.nodata_value
         output_sens_dat = np.ones(chunk_shape,dtype=np.float32) * args.nodata_value
 
         # Run column by column ...
+        from timeit import default_timer as timer
+        start = timer()
+
         for col in range(output_shape[2]):
             ret = mf_one_column(col, radiance, absorption_coefficients, active_wl_idx, good_pixel_mask, noise_model_parameters, args)
-            if ret[0] is not None:
-                output_dat[:, 0, ret[1]] = ret[0][:,0]
-                if ret[2] is not None:
-                    output_uncert_dat[:, 0, ret[1]] = ret[2][:]
-                if ret[3] is not None:
-                    output_sens_dat[:, 0, ret[1]] = ret[3][:]
+            # ^ returns mf, col, uncert, sens
+            output_dat[:,:,ret[1]] = ret[0]
+            output_uncert_dat[:,:,ret[1]] = ret[2]
+            output_sens_dat[:,:,ret[1]] = ret[3]
+
+        end = timer()
+        time = (end - start)
+        print("all mf_one_column took " + str(time) + "s (" + str(time / 60.0) + "min)")
 
         def apply_badvalue(d, mask, bad_data_value):
-            d = d.transpose((0,2,1))
-            d[mask,:] = bad_data_value
-            d = d.transpose((0,2,1))
+            d[:] = np.where(mask[:, None, :], bad_data_value, d)
             return d
 
+        # timing:
+        # todo: parallel calls but without ray ...
+        # for over all columns each with mf_one_column -> all took 34.93592554202769s (0.5822654257004615min)
+        # calling the full function "diffmf_full_scene" -> took 34.231987999984995s (0.5705331333330832min)
 
         if args.mask_clouds_water and clouds_and_surface_water_mask is not None:
             logging.info('Masking clouds and water')
@@ -234,6 +243,7 @@ def main(input_args=None, override={}):
             output_uncert_dat = apply_badvalue(output_uncert_dat, dilated_flare_mask, args.screen_value)
             output_sens_dat = apply_badvalue(output_sens_dat, dilated_flare_mask, args.screen_value)
 
+        # writing
         write_bil_chunk(output_dat, args.output_file, ce, chunk_shape)
         if args.uncert_output_file is not None:
             write_bil_chunk(output_uncert_dat, args.uncert_output_file, ce, chunk_shape)
@@ -369,22 +379,6 @@ def calculate_mf_covariance(radiance: np.array, model: str, fixed_alpha: float =
 
     return C
 
-
-def get_mc_subset(mc_iteration: int, args, good_pixel_idx: np.array):
-    if args.n_mc <= 1:
-        cov_subset = good_pixel_idx
-    else:
-        if args.subsample_strategy == 'random':
-            perm = np.random.permutation(len(good_pixel_idx))
-            subset_size = int(args.mc_bag_fraction*len(good_pixel_idx))
-            cov_subset = good_pixel_idx[perm[:subset_size]]
-        elif args.subsample_strategy == 'spatial_blocks':
-            splits = np.linspace(0,float(args.n_mc)-0.001,len(good_pixel_idx)).astype(int)
-            subset_size = np.sum(splits != mc_iteration)
-            cov_subset = good_pixel_idx[splits != mc_iteration]
-    return cov_subset
-
-
 def calculate_saturation_mask(bandmask_file: str, radiance: np.array, dilation_iterations=10, chunk_edges=None):
     '''l1b_bandmask marks static bad pixels and saturated pixels. The minimum subtraction below
     removes the contributions from static bad pixels, except in instances when the radiance
@@ -464,38 +458,36 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
 
     if args.uncert_output_file is not None:
         nedl_variance = (get_noise_equivalent_spectral_radiance(noise_model_parameters, rdn))**2
-    
+
+    cmf_diffmf_bands = [int(i) for i in args.cmf_diffmf_bands.split(",")]
+    n_bands = len(cmf_diffmf_bands) # how many bands?
+
     # array to hold results in
-    mf_mc = np.ones((rdn.shape[0],args.n_mc)) * args.nodata_value
-    uncert_mc = np.ones((rdn.shape[0],args.n_mc)) * args.nodata_value
-    sens_mc = np.ones((rdn.shape[0],args.n_mc)) * args.nodata_value
+    mf = np.ones((rdn.shape[0], n_bands)) * args.nodata_value
+    uncert = np.ones((rdn.shape[0], n_bands)) * args.nodata_value
+    sens = np.ones((rdn.shape[0], n_bands)) * args.nodata_value
 
-    np.random.seed(13)
-    for _mc in range(args.n_mc):
-        
-        # get subset of pixels to use for covariance / mean estimates
-        cov_subset = get_mc_subset(_mc, args, good_pixel_idx)
+    # np.random.seed(13)
+    mu = np.mean(rdn[good_pixel_idx,:], axis=0)
+    target = absorption_coefficients * mu
 
-        mu = np.mean(rdn[cov_subset,:], axis=0)
-        target = absorption_coefficients * mu
+    # calculate covariance and mean
+    try:
+        C = calculate_mf_covariance(rdn[good_pixel_idx,:], args.covariance_style, args.fixed_alpha)
+        Cinv = scipy.linalg.inv(C, check_finite=False)
+        Cstd = scipy.linalg.sqrtm(Cinv)
 
-        # calculate covariance and mean
-        try:
-            C = calculate_mf_covariance(rdn[cov_subset,:], args.covariance_style, args.fixed_alpha)
-            Cinv = scipy.linalg.inv(C, check_finite=False)
-            Cstd = scipy.linalg.sqrtm(Cinv)
+    except np.linalg.LinAlgError:
+        logging.warn('singular matrix. skipping this column')
+        return None, None
 
-        except np.linalg.LinAlgError:
-            logging.warn('singular matrix. skipping this column')
-            return None, None
+    tgt_zmw = (target).dot(Cstd) # ~ target
+    col_zmw = (rdn[no_radiance_mask, :] - mu).dot(Cstd)
 
-        tgt_zmw = (target).dot(Cstd) # ~ target
-        col_zmw = (rdn[no_radiance_mask, :] - mu).dot(Cstd)
-
-        d = 0 # cmf
+    for d in cmf_diffmf_bands:
+        # d = 0 # cmf
         # d = 1 # diffmf 1
         # d = 2 # diffmf 2
-
         if d == 0:
             # standard CMF
             dcol_zmw = col_zmw
@@ -507,7 +499,7 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
 
         dtgt_norm = dtgt_zmw.dot(dtgt_zmw.T) # ~ normalizer
 
-        mf = dcol_zmw.dot(dtgt_zmw.T) / dtgt_norm
+        mf_d = dcol_zmw.dot(dtgt_zmw.T) / dtgt_norm
 
         # Formalism from CMF was:
         # normalizer = target.dot(Cinv).dot(target.T)
@@ -523,9 +515,10 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
             numer = (sC * nedl_variance[no_radiance_mask,:]) @ sC
 
             # note: don't compute this again if we iterate (d in 0 to 2)
-            a_times_X = (-1 * absorption_coefficients.copy() * rdn[no_radiance_mask, :]).dot(Cstd)
 
             if d == 0:
+                a_times_X = (-1 * absorption_coefficients.copy() * rdn[no_radiance_mask, :]).dot(Cstd)
+
                 # for cmf
                 da_times_X = a_times_X
             elif d > 0:
@@ -533,32 +526,32 @@ def mf_one_column(col: int, rdn_full: np.array, absorption_coefficients: np.arra
                 da_times_X = savgol(a_times_X, deriv=d)
 
             denom = (dtgt_zmw.dot(da_times_X.T)) ** 2
-            uncert = np.sqrt(numer / denom)
+            uncert_d = np.sqrt(numer / denom)
             ####################################################################################################################
-            sens_mc[no_radiance_mask, _mc] = np.sqrt(denom) / dtgt_norm
+            sens_d = np.sqrt(denom) / dtgt_norm
 
         # scale outputs
-        mf_mc[no_radiance_mask,_mc] = mf * args.ppm_scaling
+        mf[no_radiance_mask,d] = mf_d * args.ppm_scaling
         if args.uncert_output_file is not None:
-            uncert_mc[no_radiance_mask,_mc] = uncert * args.ppm_scaling
+            uncert[no_radiance_mask,d] = uncert_d * args.ppm_scaling
+            sens[no_radiance_mask,d] = sens_d
 
-    output = np.vstack([np.mean(mf_mc,axis=-1), np.std(mf_mc,axis=-1)]).T
+    output = mf
+
     output[np.logical_and(no_radiance_mask, output[...,0] == args.nodata_value),:] = args.nodata_value + nd_buffer
     output[np.logical_not(no_radiance_mask),:] = args.nodata_value
 
     if args.uncert_output_file is not None:
-        uncert = uncert_mc[:,0]
-        uncert[np.logical_and(no_radiance_mask, uncert == args.nodata_value)] = args.nodata_value + nd_buffer
-        uncert[np.logical_not(no_radiance_mask)] = args.nodata_value
+        uncert[np.logical_and(no_radiance_mask, uncert[..., 0] == args.nodata_value), :] = args.nodata_value + nd_buffer
+        uncert[np.logical_not(no_radiance_mask), :] = args.nodata_value
         uncert[np.logical_not(np.isfinite(uncert))] = args.nodata_value
-        sens = sens_mc[:,0]
-        sens[np.logical_and(no_radiance_mask, sens == args.nodata_value)] = args.nodata_value + nd_buffer
-        sens[np.logical_not(no_radiance_mask)] = args.nodata_value
-        sens[np.logical_not(np.isfinite(uncert))] = args.nodata_value
+        sens[np.logical_and(no_radiance_mask, sens[..., 0] == args.nodata_value), :] = args.nodata_value + nd_buffer
+        sens[np.logical_not(no_radiance_mask), :] = args.nodata_value
+        sens[np.logical_not(np.isfinite(sens))] = args.nodata_value
     else:
         uncert = None
         sens = None
-        
+
     logging.debug(f'Column {col} mean: {np.mean(output[good_pixel_idx,0])}')
     return output.astype(np.float32), col, uncert, sens
 

@@ -78,7 +78,7 @@ class SerialEncoder(json.JSONEncoder):
         else:
             return super(SerialEncoder, self).default(obj)
 
-def convert_to_cog(input_file, output_file,product_metadata,software_build_version,product_version):
+def convert_to_cog(input_file, output_file, product_metadata, software_build_version, product_version):
 
     metadata = {}
     metadata['keywords'] = "Imaging Spectroscopy, minerals, EMIT, dust, radiative forcing"
@@ -103,16 +103,21 @@ def convert_to_cog(input_file, output_file,product_metadata,software_build_versi
     metadata['software_build_version'] = software_build_version
     metadata['product_version'] = product_version
 
-    metadata['description'] = product_metadata['description']
+    if isinstance(product_metadata, (list, tuple)):
+        metadata['description'] = product_metadata[0]['description']
+    else:
+        metadata['description'] = product_metadata['description']
 
     ds_mem = gdal.Translate('', input_file, format='MEM')
     ds_mem.SetMetadata(metadata)
 
-    band = ds_mem.GetRasterBand(1)
-    band.SetDescription(product_metadata['name'])
-    band.SetMetadataItem("UNITS",product_metadata['units'])
+    for i in range(1, ds_mem.RasterCount + 1):
+        band = ds_mem.GetRasterBand(i)
 
-    band.FlushCache()
+        band_meta = (product_metadata[i - 1] if isinstance(product_metadata, (list, tuple)) else product_metadata)
+        band.SetDescription(band_meta['name'])
+        band.SetMetadataItem("UNITS", band_meta['units'])
+        band.FlushCache()
 
     translate_options = gdal.TranslateOptions(format='COG')
     gdal.Translate(output_file, ds_mem, options=translate_options)
