@@ -14,7 +14,6 @@ def generate_target_for_scene(radiance_file, target_file, obs_file, loc_file, ma
     if os.path.isfile(target_file) is False:
         _, obs = spec_io.load_data(obs_file)
         sza = obs[...,4]
-
         mean_sza = np.mean(sza[sza != -9999])
 
         _, elevation = spec_io.load_data(loc_file, return_loc_from_l1b_rad_nc=True)
@@ -23,16 +22,17 @@ def generate_target_for_scene(radiance_file, target_file, obs_file, loc_file, ma
         mean_elevation = min(max(0, mean_elevation),3)
 
         # V001 of the RAD products:
-        if product_version == "V001":
+        if product_version == "001":
             if mask_file is not None:
                 m_state, d_state = spec_io.load_data(mask_file, mask_type='mask')
 
                 if mask_file.endswith('.nc'):
                     ind = m_state.band_names.index('H2O (g cm-2)')
-                    mean_h2o = np.mean(d_state[:,:,ind])
+                    mean_h2o = np.nanmean(d_state[:,:,ind])
                 else:
                     ind = m_state.band_names.index('H2OSTR')
-                    mean_h2o = np.mean(d_state[:,0,ind])
+                    mean_h2o = np.nanmean(d_state[:,0,ind])
+
             else:
                 # Just guess something...
                 exit()
