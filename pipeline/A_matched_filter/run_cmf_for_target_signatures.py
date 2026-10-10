@@ -7,9 +7,9 @@ import pipeline.A_matched_filter.cmf_emit_ghg.mf as mf
 import pipeline.A_matched_filter.cmf_emit_ghg.spec_io as spec_io
 from pipeline.A_matched_filter.cmf_emit_ghg.s_utils import convert_to_cog
 from utils.download_utils import get_obs_name, get_mask_name
+import numpy as np
 
-
-# Below is taken from ghg_process...
+# Below is taken from ghg_process... adapted slightly
 def ortho_with_spec_io(obs_for_glt_filename, unortho_input_filename, ortho_output_filename):
     m_obs, _ = spec_io.load_data(obs_for_glt_filename, load_glt=True)
     m, d = spec_io.load_data(unortho_input_filename)
@@ -18,9 +18,8 @@ def ortho_with_spec_io(obs_for_glt_filename, unortho_input_filename, ortho_outpu
     m.projection = m_obs.projection
     spec_io.write_envi_file(d_ort, m, ortho_output_filename)
 
-
 def run_cmf_using_target_file(gas_name, folder_path, radiance_file, glt_file, target_file, l2a_mask_file,
-                              wavelength_range_override = None):
+                              wavelength_range_override = None, use_diffmf = False):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
@@ -42,11 +41,25 @@ def run_cmf_using_target_file(gas_name, folder_path, radiance_file, glt_file, ta
 
     overwrite = True
 
+    # cmf_diffmf_bands as [0] - just CMF
+    cmf_diffmf_bands = "0"
+    product_metadata = [
+        {'name': 'EMIT_CMF', 'units': 'ppm m', 'description': 'CMF gas - ' + gas_name},
+    ]
+
+    if use_diffmf:
+        # cmf_diffmf_bands as [0,1,2] - as CMF + DiffMF1 + DiffMF2
+        cmf_diffmf_bands = "0,1,2"
+        product_metadata += [
+            {'name': 'EMIT_DiffMF1', 'units': 'ppm m', 'description': 'DiffMF1 gas - ' + gas_name},
+            {'name': 'EMIT_DiffMF2', 'units': 'ppm m', 'description': 'DiffMF2 gas - ' + gas_name},
+        ]
+
     if (os.path.isfile(mf_file) is False or overwrite):
         subargs = [radiance_file,
                    target_file,
                    mf_file,
-                   '--n_mc', '1',
+                   '--cmf_diffmf_bands', cmf_diffmf_bands,
                    '--l1b_bandmask_file', l1b_bandmask_file,
                    '--l2a_mask_file', l2a_mask_file,
                    '--fixed_alpha', '0.0000000001',
@@ -67,19 +80,11 @@ def run_cmf_using_target_file(gas_name, folder_path, radiance_file, glt_file, ta
 
         # ORT MF
         ortho_with_spec_io(glt_file, mf_file, mf_ort_file)
-        convert_to_cog(mf_ort_file,
-                       mf_ort_cog,
-                       {
-                           'name': 'EMIT_CMF',
-                           'description': 'CMF gas - '+gas_name,
-                           'units': 'ppm m'
-                       },
-                       None,
-                       None)
+        convert_to_cog(mf_ort_file, mf_ort_cog, product_metadata, None, None)
         return mf_ort_cog
 
 def run_cmf_using_target_file_tile_ID(tile_ID, gas_name, target_file, raws_folder,
-                                      wavelength_range_override=None):
+                                      wavelength_range_override=None, use_diffmf=False):
 
     print("Downloading L1 data (RAD, OBS and mask (and reference CMF)) (... This might take some time!)")
     download_granule(tile_ID, raws_folder, also_download_l2a_mask=True, also_download_official_cmf=True)
@@ -94,15 +99,15 @@ def run_cmf_using_target_file_tile_ID(tile_ID, gas_name, target_file, raws_folde
 
     print("Cooking CMF products")
     result_file = run_cmf_using_target_file(gas_name, raws_folder, radiance_file, obs_file, target_file, l2a_mask_file,
-                                            wavelength_range_override=wavelength_range_override)
+                                            wavelength_range_override=wavelength_range_override, use_diffmf=use_diffmf)
 
     # Geotiff file compression
     with rasterio.open(result_file) as src:
         profile = src.profile.copy()
-        data = src.read(1)
-        profile.update(driver='GTiff', count=1, compress='lzw')
+        data = src.read()
+        profile.update(driver='GTiff', count=src.count, compress='lzw')
     with rasterio.open(result_file, 'w', **profile) as dst:
-        dst.write(data, 1)
+        dst.write(data)
 
     return result_file
 

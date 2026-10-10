@@ -5,12 +5,9 @@ from utils.vec_utils import vec_load
 from pipeline.C_plume_scoring.scoring_gas_utils import get_score_for_tile
 from pipeline.C_plume_scoring.run_scoring import annotate_and_save_vectors
 
-def score_trace_gas(gas, tile_ID, target_file, results_folder, raws_folder):
+def score_trace_gas(gas, tile_ID, target_file, cmf_file_path, results_folder, raws_folder):
 
-    cmf_file_name = gas+"-cmf.tif"
     predictions_file_name = gas+"-prediction"
-
-    cmf_file_path = os.path.join(results_folder, cmf_file_name)
     save_vectors_path = os.path.join(results_folder, predictions_file_name + ".geojson")
     save_scored_vectors_path = os.path.join(results_folder, predictions_file_name + "_scored.geojson")
 
