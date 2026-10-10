@@ -23,6 +23,7 @@ Please refer to the publication for more details about the methods.
 ## Versions
 
 ```bash
+v1.0.2 - Support for DiffMF, currently as extra visuals and not used by models
 v1.0.1 - Added support for V002 version of the radiance products (any scene starting with "EMIT_L1B_RAD_002_*")
 v1.0.0 - Paper release version
 ```
@@ -72,6 +73,7 @@ python -m detect_trace_gas -gas "nh3" -tile "EMIT_L1B_RAD_001_20231223T123029_23
 python -m detect_trace_gas -gas "no2" -tile "EMIT_L1B_RAD_001_20250418T090845_2510806_029"
 python -m detect_trace_gas -gas "co"  -tile "EMIT_L1B_RAD_001_20230623T031429_2317402_015"
 # PS: Scenes with the V002 radiance (starting with "EMIT_L1B_RAD_002_*") are also supported
+# PS: Add -enable_diffmf True to also generate diffmf product as gas+"-cmf_diffmf.tif"
 
 # Or with uv (this might be slow first time)
 uv run detect_trace_gas.py -gas "ch4" -tile "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
@@ -89,7 +91,7 @@ One thing to note is that the models used for predicting methane (`ch4`) point d
 ## Related code repositories
 
 Matched filter products:
-- https://github.com/emit-sds/emit-ghg/ (CMF)
+- https://github.com/emit-sds/emit-ghg/ (CMF and DiffMF)
 - https://github.com/UNEP-IMEO-MARS/marshsi (WMF)
 
 Machine learning models:
