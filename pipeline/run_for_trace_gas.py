@@ -11,6 +11,9 @@ from pipeline.C_plume_scoring.run_scoring_for_other_gases import score_trace_gas
 
 def run_for_trace_gas(gas, tile_ID, results_folder, raws_folder, use_diffmf=False):
     cmf_file_name = gas+"-cmf.tif"
+    if use_diffmf:
+        cmf_file_name = gas + "-cmf_diffmf.tif"
+
     predictions_file_name = gas+"-prediction"
     signatures_folder = os.path.join(codebase_folder(), "parameters", "target_signatures")
     cmf_file_path = os.path.join(results_folder, cmf_file_name)
@@ -60,6 +63,6 @@ def run_for_trace_gas(gas, tile_ID, results_folder, raws_folder, use_diffmf=Fals
     # 3 SCORE PREDICTIONS
     print("----------------------------------------")
     print("Step 3: scoring predictions")
-    saved_scored_vectors_path = score_trace_gas(gas, tile_ID, target_file, results_folder, raws_folder)
+    saved_scored_vectors_path = score_trace_gas(gas, tile_ID, target_file, cmf_file_path, results_folder, raws_folder)
 
     return saved_scored_vectors_path

@@ -35,9 +35,12 @@ def run_for_ch4(tile_ID, results_folder, raws_folder, use_diffmf=False):
 
         target_file = ch4_target_for_scene(tile_ID, raws_folder, results_folder)
         result_cmf_file = run_cmf_using_target_file_tile_ID(tile_ID, "ch4", target_file, raws_folder, use_diffmf=use_diffmf)
+        shutil.copy(result_cmf_file, cmf_file_name) # used by the scoring function later
 
-        shutil.copy(result_cmf_file, cmf_file_name)
-        shutil.copy(result_cmf_file, os.path.join(results_folder, "ch4-cmf.tif")) # add it for visualisation
+        cmf_file_name = "ch4-cmf.tif"
+        if use_diffmf:
+            cmf_file_name = "ch4-cmf_diffmf.tif"
+        shutil.copy(result_cmf_file, os.path.join(results_folder, cmf_file_name)) # and for visualisation to the results folder
 
     # 2 MODEL PREDICTION
     print("----------------------------------------")
