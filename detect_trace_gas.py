@@ -13,8 +13,9 @@ parser.add_argument('-gas', help='Which trace gas? (options: ch4, nh3, no2 and c
 parser.add_argument('-tile', help='Which EMIT tile to run? (e.g. EMIT_L1B_RAD_001_20260102T143123_2600209_005)', default='EMIT_L1B_RAD_001_20260102T143123_2600209_005')
 parser.add_argument('-raws_folder', help='Folder to store intermediate files', default='./run_data/intermediates_folder')
 parser.add_argument('-results_folder', help='Folder to save results to', default='./run_data/results')
+parser.add_argument('-enable_diffmf', help='When enabled will also add DiffMF bands to the CMF product (ps: it is not used by models)', default='False')
 
-def detect_trace_gas(gas, tile_ID, results_folder, raws_folder):
+def detect_trace_gas(gas, tile_ID, results_folder, raws_folder, use_diffmf=False):
     print("Running detection of", gas, "in EMIT tile:", tile_ID)
     raws_folder = os.path.join(raws_folder, tile_ID)
     results_folder = os.path.join(results_folder, tile_ID)
@@ -23,11 +24,11 @@ def detect_trace_gas(gas, tile_ID, results_folder, raws_folder):
 
     if gas == "ch4":
         # Use the methane pathway:
-        run_for_ch4(tile_ID, results_folder, raws_folder)
+        run_for_ch4(tile_ID, results_folder, raws_folder, use_diffmf)
 
     elif gas in ["nh3", "no2", "co"]:
         # Use the other trace gases pathway:
-        run_for_trace_gas(gas, tile_ID, results_folder, raws_folder)
+        run_for_trace_gas(gas, tile_ID, results_folder, raws_folder, use_diffmf)
 
     else:
         print("Trace gas", gas, "not supported!")
@@ -39,12 +40,13 @@ if __name__ == '__main__':
 
     tile_ID = args.tile
     gas = args.gas
+    use_diffmf = args.enable_diffmf
 
     results_folder = args.results_folder
     raws_folder = args.raws_folder
 
     # ### DEMO LOCAL OVERRIDES
-    r = "."
+    # r = "."
     # tile_ID = "EMIT_L1B_RAD_001_20260102T143123_2600209_005"
     # gas = "ch4"
     #
@@ -60,17 +62,18 @@ if __name__ == '__main__':
     # gas = "co"
 
     # Adding compatibility with V002 of RAD products - test for other trace gases:
-
     # tile_ID = "EMIT_L1B_RAD_001_20230217T063221_2304804_014"
-    tile_ID = "EMIT_L1B_RAD_002_20230217T063221"
-    gas = "co"
-
+    # tile_ID = "EMIT_L1B_RAD_002_20230217T063221"
+    # gas = "co"
 
     # raws_folder = r+"/run_data/intermediates_folder"
     # results_folder = r+"/run_data/results"
     # ###
 
-    detect_trace_gas(gas, tile_ID, results_folder, raws_folder)
+    # DiffMF product - if turned on with enable_diffmf, then the produced CMF will also have added DiffMF bands
+    #                  (but the models still use the CMF, for now this is extra functionality just for visualisation)
+
+    detect_trace_gas(gas, tile_ID, results_folder, raws_folder, use_diffmf)
 
     end = timer()
     time = (end - start)

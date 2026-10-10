@@ -19,7 +19,7 @@ def ortho_with_spec_io(obs_for_glt_filename, unortho_input_filename, ortho_outpu
     spec_io.write_envi_file(d_ort, m, ortho_output_filename)
 
 def run_cmf_using_target_file(gas_name, folder_path, radiance_file, glt_file, target_file, l2a_mask_file,
-                              wavelength_range_override = None):
+                              wavelength_range_override = None, use_diffmf = False):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
@@ -40,7 +40,6 @@ def run_cmf_using_target_file(gas_name, folder_path, radiance_file, glt_file, ta
         print("OVERRIDE, setting wavelength_range_override=", wavelength_range_override)
 
     overwrite = True
-    use_diffmf = False
 
     # cmf_diffmf_bands as [0] - just CMF
     cmf_diffmf_bands = "0"
@@ -85,7 +84,7 @@ def run_cmf_using_target_file(gas_name, folder_path, radiance_file, glt_file, ta
         return mf_ort_cog
 
 def run_cmf_using_target_file_tile_ID(tile_ID, gas_name, target_file, raws_folder,
-                                      wavelength_range_override=None):
+                                      wavelength_range_override=None, use_diffmf=False):
 
     print("Downloading L1 data (RAD, OBS and mask (and reference CMF)) (... This might take some time!)")
     download_granule(tile_ID, raws_folder, also_download_l2a_mask=True, also_download_official_cmf=True)
@@ -100,7 +99,7 @@ def run_cmf_using_target_file_tile_ID(tile_ID, gas_name, target_file, raws_folde
 
     print("Cooking CMF products")
     result_file = run_cmf_using_target_file(gas_name, raws_folder, radiance_file, obs_file, target_file, l2a_mask_file,
-                                            wavelength_range_override=wavelength_range_override)
+                                            wavelength_range_override=wavelength_range_override, use_diffmf=use_diffmf)
 
     # Geotiff file compression
     with rasterio.open(result_file) as src:

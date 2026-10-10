@@ -9,7 +9,7 @@ from pipeline.A_matched_filter.run_cmf_for_target_signatures import run_cmf_usin
 from pipeline.B_ml_segmentation.run_models_other_gases import run_models_main_other_gases
 from pipeline.C_plume_scoring.run_scoring_for_other_gases import score_trace_gas
 
-def run_for_trace_gas(gas, tile_ID, results_folder, raws_folder):
+def run_for_trace_gas(gas, tile_ID, results_folder, raws_folder, use_diffmf=False):
     cmf_file_name = gas+"-cmf.tif"
     predictions_file_name = gas+"-prediction"
     signatures_folder = os.path.join(codebase_folder(), "parameters", "target_signatures")
@@ -36,7 +36,7 @@ def run_for_trace_gas(gas, tile_ID, results_folder, raws_folder):
     print("----------------------------------------")
     print("Step 1: getting data, computing CMF")
     if not file_exists(cmf_file_path):
-        result_cmf_file = run_cmf_using_target_file_tile_ID(tile_ID, gases[gas], target_file, raws_folder)
+        result_cmf_file = run_cmf_using_target_file_tile_ID(tile_ID, gases[gas], target_file, raws_folder, use_diffmf=use_diffmf)
         shutil.copy(result_cmf_file, cmf_file_path)
 
     # 2 MODEL PREDICTION
